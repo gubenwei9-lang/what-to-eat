@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>等会吃什么 - 美食推荐</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window._AMapSecurityConfig = {
+            securityJsCode: '637ea4750e0e3cfe90c1a86e82d5e574',
+        };
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=cefa436e88ba3c273a0da1e7a8abdb48&plugin=AMap.Geocoder,AMap.PlaceSearch,AMap.AutoComplete"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .card-border {
+            border: 3px solid #000;
+        }
+        .restaurant-card {
+            transition: all 0.3s ease;
+        }
+        .restaurant-card:hover {
+            transform: translateY(-2px);
+        }
+        .restaurant-card.selected {
+            border-color: #000;
+            background-color: #fef3c7;
+            box-shadow: 0 0 0 3px #facc15;
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 1s infinite;
+        }
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-[#fdf6e3] min-h-screen">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <header class="mb-8">
+            <div class="bg-[#3b82f6] text-white p-6 card-border">
+                <div class="flex items-center gap-3 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <h1 class="text-3xl md:text-4xl font-bold">等会吃什么？</h1>
+                </div>
+                <p class="text-blue-100 text-lg">搜索地址，帮你找到附近的美食，随机为你选择一家！</p>
+            </div>
+        </header>
+
+        <div class="bg-white p-6 card-border mb-8">
+            <div class="relative">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1 relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <input type="text" id="addressInput" 
+                            class="w-full pl-14 pr-4 py-4 text-lg border-3 border-black rounded-none outline-none transition-all bg-white"
+                            placeholder="输入地址，比如：北京市朝阳区望京SOHO">
+                        <div id="autocompleteList" class="absolute top-full left-0 right-0 mt-2 bg-white border-3 border-black z-50 hidden max-h-60 overflow-y-auto">
+                        </div>
+                    </div>
+                    <button id="locateBtn" 
+                        class="px-6 py-4 bg-[#3b82f6] text-white font-bold text-lg border-3 border-black hover:bg-[#2563eb] transition-all flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        我的位置
+                    </button>
+                    <button id="searchBtn" 
+                        class="px-6 py-4 bg-[#eab308] text-black font-bold text-lg border-3 border-black hover:bg-[#ca8a04] transition-all flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        搜索
+                    </button>
+                </div>
+                
+                <div class="mt-4 flex items-center justify-between text-sm text-gray-500">
+                    <span>搜索范围：500米</span>
+                    <span class="flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                        </svg>
+                        <span>数据来源：高德地图</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingState" class="hidden text-center py-16">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-white border-3 border-black mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-[#eab308] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+            </div>
+            <p class="text-xl font-bold text-black">正在搜索附近的餐厅...</p>
+        </div>
+
+        <div id="noResultState" class="hidden text-center py-16">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-white border-3 border-black mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-black mb-2">未找到附近的餐厅</h3>
+            <p class="text-gray-500">请尝试更换搜索地址，或者扩大搜索范围</p>
+        </div>
+
+        <div id="restaurantList" class="space-y-6 mb-8 hidden">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-black">附近美食</h2>
+                <span id="restaurantCount" class="px-4 py-2 bg-[#eab308] text-black font-bold text-sm border-3 border-black"></span>
+            </div>
+
+            <div class="flex gap-3">
+                <button class="tab-btn active px-8 py-3 bg-[#eab308] text-black font-bold border-3 border-black hover:bg-[#ca8a04] transition-all" data-tab="restaurant">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    餐厅
+                </button>
+                <button class="tab-btn px-8 py-3 bg-[#ec4899] text-white font-bold border-3 border-black hover:bg-[#db2777] transition-all" data-tab="milkTea">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    奶茶店
+                </button>
+                <button class="tab-btn px-8 py-3 bg-[#22c55e] text-white font-bold border-3 border-black hover:bg-[#16a34a] transition-all" data-tab="dessert">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 inline mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    甜品下午茶
+                </button>
+            </div>
+            
+            <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+
+            <div id="emptyTabState" class="hidden text-center py-12">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-white border-3 border-black mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                </div>
+                <p class="text-gray-500">该分类暂无结果</p>
+            </div>
+        </div>
+
+        <div id="randomSelector" class="hidden text-center">
+            <button id="randomBtn" 
+                class="group relative px-16 py-6 bg-[#ef4444] text-white font-bold text-xl border-3 border-black hover:bg-[#dc2626] transition-all">
+                <span class="flex items-center gap-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 group-hover:animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                        <path d="M16 21h5v-5"></path>
+                        <path d="M21 12a9 9 0 0 1-9 9"></path>
+                        <path d="M12 3a9 9 0 0 1 9 9"></path>
+                    </svg>
+                    帮我选一家！
+                </span>
+            </button>
+        </div>
+
+        <div id="selectedResult" class="hidden mt-8">
+            <div class="bg-white p-6 card-border">
+                <div class="flex items-center gap-3 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-[#eab308]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <h3 class="text-xl font-bold text-black">就决定是这家了！</h3>
+                </div>
+                <div id="selectedCard" class="bg-white p-4">
+                </div>
+            </div>
+        </div>
+
+        <div id="detailModal" class="fixed inset-0 z-[100] bg-black/50 hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-3xl max-h-[90vh] overflow-hidden border-3 border-black">
+                <div class="relative">
+                    <button id="closeDetailBtn" onclick="closeDetail()" class="absolute top-4 right-4 w-10 h-10 bg-white border-2 border-black flex items-center justify-center hover:bg-gray-100 transition-colors z-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div id="detailMap" class="w-full h-64 bg-gray-200"></div>
+                </div>
+                
+                <div class="p-6 overflow-y-auto max-h-[calc(90vh-16rem)]">
+                    <div class="flex items-start gap-4 mb-6">
+                        <div id="detailPhoto" class="w-24 h-24 bg-[#fdf6e3] border-2 border-black flex-shrink-0"></div>
+                        <div>
+                            <h2 id="detailName" class="text-2xl font-bold text-black mb-2"></h2>
+                            <div id="detailCuisine" class="flex flex-wrap gap-2 mb-2"></div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-1 bg-[#22c55e] text-white px-3 py-1 border-2 border-black">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                    </svg>
+                                    <span id="detailRating" class="font-bold"></span>
+                                </div>
+                                <span id="detailDistance" class="text-[#ef4444] font-bold text-sm"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-4 p-4 bg-[#dbeafe] border-3 border-black">
+                            <div class="w-12 h-12 bg-[#3b82f6] flex items-center justify-center flex-shrink-0 border-2 border-black">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                    <circle cx="12" cy="10" r="3"></circle>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-[#1e40af] text-sm font-bold mb-1">地址</p>
+                                <p id="detailAddress" class="text-black font-bold"></p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-4 p-4 bg-[#dcfce7] border-3 border-black">
+                            <div class="w-12 h-12 bg-[#22c55e] flex items-center justify-center flex-shrink-0 border-2 border-black">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-[#166534] text-sm font-bold mb-1">电话</p>
+                                <a id="detailPhone" href="#" class="text-black font-bold hover:text-[#22c55e]"></a>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-4 p-4 bg-[#fef9c3] border-3 border-black">
+                            <div class="w-12 h-12 bg-[#eab308] flex items-center justify-center flex-shrink-0 border-2 border-black">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-[#854d0e] text-sm font-bold mb-1">营业时间</p>
+                                <p id="detailHours" class="text-black font-bold"></p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-4 p-4 bg-[#fce7f3] border-3 border-black">
+                            <div class="w-12 h-12 bg-[#ec4899] flex items-center justify-center flex-shrink-0 border-2 border-black">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-[#9d174d] text-sm font-bold mb-1">餐饮类型</p>
+                                <p id="detailType" class="text-black font-bold"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="detailNavBtn" class="mt-6 w-full py-4 bg-[#eab308] text-black font-bold text-lg border-3 border-black hover:bg-[#ca8a04] transition-all flex items-center justify-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        导航到这里
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>数据来源：<a href="https://lbs.amap.com/" target="_blank" class="text-[#3b82f6] hover:underline">高德地图开放平台</a> | 搜索范围：500米</p>
+        </footer>
+    </div>
+
+    <script>
+        const addressInput = document.getElementById('addressInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const locateBtn = document.getElementById('locateBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const restaurantList = document.getElementById('restaurantList');
+        const cardsContainer = document.getElementById('cardsContainer');
+        const loadingState = document.getElementById('loadingState');
+        const noResultState = document.getElementById('noResultState');
+        const randomSelector = document.getElementById('randomSelector');
+        const selectedResult = document.getElementById('selectedResult');
+        const selectedCard = document.getElementById('selectedCard');
+        const restaurantCount = document.getElementById('restaurantCount');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const emptyTabState = document.getElementById('emptyTabState');
+        const detailModal = document.getElementById('detailModal');
+        const detailPhoto = document.getElementById('detailPhoto');
+        const detailName = document.getElementById('detailName');
+        const detailCuisine = document.getElementById('detailCuisine');
+        const detailRating = document.getElementById('detailRating');
+        const detailDistance = document.getElementById('detailDistance');
+        const detailAddress = document.getElementById('detailAddress');
+        const detailPhone = document.getElementById('detailPhone');
+        const detailHours = document.getElementById('detailHours');
+        const detailType = document.getElementById('detailType');
+        const detailNavBtn = document.getElementById('detailNavBtn');
+        const detailMap = document.getElementById('detailMap');
+
+        let allRestaurants = [];
+        let selectedLocation = null;
+        let currentTab = 'restaurant';
+        let detailMapInstance = null;
+
+        const categories = {
+            restaurant: { name: '餐厅', data: [] },
+            milkTea: { name: '奶茶店', data: [] },
+            dessert: { name: '甜品下午茶', data: [] }
+        };
+
+        const milkTeaKeywords = ['奶茶', '饮品', '咖啡', '茶饮', '果汁', '茶颜悦色', '喜茶', '奈雪', '星巴克', '瑞幸', '古茗', '沪上阿姨', '蜜雪冰城', 'coco', '一点点', '茶百道'];
+        const dessertKeywords = ['甜品', '蛋糕', '烘焙', '面包', '冰淇淋', '雪糕', '下午茶', '西点', '点心', '糕点', '糖水', '布丁', '酸奶'];
+
+        const cuisineCategories = {
+            '日料': ['日料', '寿司', '刺身', '居酒屋', '日式', '拉面', '丼'],
+            '西餐': ['西餐', '牛排', '披萨', '意面', '汉堡', '炸鸡', '三明治', '咖啡', '面包'],
+            '中餐': ['中餐', '炒菜', '川菜', '粤菜', '湘菜', '东北菜', '火锅', '烧烤', '麻辣烫', '串串'],
+            '韩餐': ['韩式', '烤肉', '炸鸡', '拌饭', '冷面', '部队火锅'],
+            '东南亚': ['泰菜', '越南', '马来', '新加坡', '东南亚'],
+            '快餐': ['快餐', '汉堡', '炸鸡', '薯条', '披萨', '肯德基', '麦当劳'],
+            '小吃': ['小吃', '烧烤', '麻辣烫', '串串', '火锅', '点心'],
+            '清真': ['清真', '回民'],
+            '素食': ['素食', '素菜', '蔬食'],
+            '海鲜': ['海鲜', '水产'],
+            '面馆': ['面馆', '拉面', '拌面', '汤面'],
+            '粥店': ['粥店', '粥铺'],
+            '川菜': ['川菜', '麻辣'],
+            '粤菜': ['粤菜', '广式', '早茶'],
+            '湘菜': ['湘菜', '湖南'],
+            '江浙菜': ['江浙', '苏菜', '杭帮菜'],
+            '东北菜': ['东北菜', '东北'],
+            '西北菜': ['西北', '新疆', '兰州', '陕西'],
+            '云南菜': ['云南', '滇菜'],
+            '贵州菜': ['贵州', '黔菜'],
+            '火锅': ['火锅', '涮肉'],
+            '烧烤': ['烧烤', '烤肉'],
+            '自助餐': ['自助']
+        };
+
+        function classifyRestaurants(pois) {
+            categories.restaurant.data = [];
+            categories.milkTea.data = [];
+            categories.dessert.data = [];
+
+            pois.forEach(poi => {
+                const name = poi.name;
+                const type = poi.type || '';
+                const typecode = poi.typecode || '';
+                
+                let category = 'restaurant';
+                
+                if (typecode.startsWith('0503')) {
+                    category = 'milkTea';
+                } else if (typecode.startsWith('0504')) {
+                    category = 'dessert';
+                } else {
+                    const lowerName = name.toLowerCase();
+                    const lowerType = type.toLowerCase();
+                    
+                    for (const kw of milkTeaKeywords) {
+                        if (lowerName.includes(kw.toLowerCase()) || lowerType.includes(kw.toLowerCase())) {
+                            category = 'milkTea';
+                            break;
+                        }
+                    }
+                    
+                    if (category === 'restaurant') {
+                        for (const kw of dessertKeywords) {
+                            if (lowerName.includes(kw.toLowerCase()) || lowerType.includes(kw.toLowerCase())) {
+                                category = 'dessert';
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                const cuisine = getCuisineType(type);
+                const location = poi.location || {};
+                
+                const restaurant = {
+                    name: name,
+                    address: poi.address || poi.adname + name,
+                    distance: poi.distance ? poi.distance + '米' : '未知距离',
+                    rating: poi.score || '暂无评分',
+                    type: type || '餐饮',
+                    cuisine: cuisine,
+                    lng: location.lng || 0,
+                    lat: location.lat || 0,
+                    tel: poi.tel || '',
+                    photos: poi.photos || [],
+                    photoUrl: (poi.photos && poi.photos.length > 0) ? poi.photos[0].url : '',
+                    businessHours: poi.businessHours || '暂无营业时间'
+                };
+
+                categories[category].data.push(restaurant);
+            });
+        }
+
+        function getCuisineType(type) {
+            for (const [cuisine, keywords] of Object.entries(cuisineCategories)) {
+                for (const kw of keywords) {
+                    if (type.includes(kw)) {
+                        return cuisine;
+                    }
+                }
+            }
+            return '其他餐饮';
+        }
+
+        function renderRestaurants() {
+            restaurantList.classList.remove('hidden');
+            randomSelector.classList.remove('hidden');
+            selectedResult.classList.add('hidden');
+            
+            const data = categories[currentTab].data;
+            restaurantCount.textContent = `${data.length}家`;
+            
+            if (data.length === 0) {
+                cardsContainer.innerHTML = '';
+                emptyTabState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyTabState.classList.add('hidden');
+            cardsContainer.innerHTML = data.map((restaurant, index) => 
+                createRestaurantCard(restaurant, false, index)
+            ).join('');
+            
+            cardsContainer.querySelectorAll('.detail-btn').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    showDetail(data[index]);
+                });
+            });
+        }
+
+        function createRestaurantCard(restaurant, isSelected = false) {
+            const imageHtml = restaurant.photoUrl ? `
+                <img src="${restaurant.photoUrl}" alt="${restaurant.name}" class="w-16 h-16 object-cover bg-gray-200 border-2 border-black" />
+            ` : `
+                <div class="w-16 h-16 bg-[#fdf6e3] flex items-center justify-center border-2 border-black">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-[#eab308]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </div>
+            `;
+            
+            const navUrl = restaurant.lng && restaurant.lat ? `https://uri.amap.com/navigation?to=${restaurant.lng},${restaurant.lat},${encodeURIComponent(restaurant.name)}&mode=car` : '';
+            
+            return `
+                <div class="restaurant-card ${isSelected ? 'selected' : ''} bg-white p-4 border-3 border-black">
+                    <div class="flex items-start gap-4 mb-4">
+                        ${imageHtml}
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-black mb-1">${restaurant.name}</h3>
+                            <span class="px-3 py-1 bg-[#ec4899] text-white text-xs font-bold">${restaurant.cuisine}</span>
+                        </div>
+                        <div class="flex items-center gap-1 bg-[#22c55e] text-white px-2 py-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span class="font-bold text-sm">${restaurant.rating}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-700 text-sm mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span>${restaurant.address}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[#ef4444] font-bold text-sm mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        <span>${restaurant.distance}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="detail-btn flex-1 py-2 bg-[#eab308] text-black font-bold border-2 border-black hover:bg-[#ca8a04] transition-colors flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path>
+                                <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            查看详情
+                        </button>
+                        ${navUrl ? `
+                            <button onclick="window.open('${navUrl}', '_blank')" class="flex-1 py-2 bg-[#3b82f6] text-white font-bold border-2 border-black hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                </svg>
+                                导航
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function searchRestaurants() {
+            const address = addressInput.value.trim();
+            if (!address) {
+                alert('请输入搜索地址');
+                return;
+            }
+
+            loadingState.classList.remove('hidden');
+            noResultState.classList.add('hidden');
+            restaurantList.classList.add('hidden');
+            randomSelector.classList.add('hidden');
+            selectedResult.classList.add('hidden');
+
+            if (selectedLocation) {
+                searchNearbyByLocation(selectedLocation.lng, selectedLocation.lat);
+                selectedLocation = null;
+                return;
+            }
+
+            geocoder.getLocation(address, function(status, result) {
+                if (status === 'complete' && result.geocodes.length > 0) {
+                    const location = result.geocodes[0].location;
+                    searchNearbyByLocation(location.lng, location.lat);
+                } else {
+                    loadingState.classList.add('hidden');
+                    noResultState.classList.remove('hidden');
+                }
+            });
+        }
+
+        function selectRandomRestaurant() {
+            const data = categories[currentTab].data;
+            if (data.length === 0) {
+                alert('当前分类没有餐厅');
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * data.length);
+            const selected = data[randomIndex];
+
+            document.querySelectorAll('.restaurant-card').forEach((card, index) => {
+                card.classList.remove('selected');
+                if (index === randomIndex) {
+                    card.classList.add('selected');
+                }
+            });
+
+            selectedCard.innerHTML = createRestaurantCard(selected, true);
+            selectedResult.classList.remove('hidden');
+
+            selectedResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function showDetail(restaurant) {
+            detailModal.classList.remove('hidden');
+            
+            detailPhoto.innerHTML = restaurant.photoUrl ? `
+                <img src="${restaurant.photoUrl}" alt="${restaurant.name}" class="w-full h-full object-cover" />
+            ` : `
+                <div class="w-full h-full bg-[#fdf6e3] flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-[#eab308]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </div>
+            `;
+            
+            detailName.textContent = restaurant.name;
+            
+            const cuisineParts = restaurant.type.split(';').filter(p => p);
+            detailCuisine.innerHTML = cuisineParts.map(c => `
+                <span class="px-3 py-1 bg-[#ec4899] text-white text-xs font-bold border-2 border-black">${c}</span>
+            `).join('');
+            
+            detailRating.textContent = restaurant.rating;
+            detailDistance.textContent = restaurant.distance;
+            detailAddress.textContent = restaurant.address;
+            
+            if (restaurant.tel) {
+                detailPhone.href = `tel:${restaurant.tel}`;
+                detailPhone.textContent = restaurant.tel;
+            } else {
+                detailPhone.href = '#';
+                detailPhone.textContent = '暂无电话';
+            }
+            
+            detailHours.textContent = restaurant.businessHours;
+            detailType.textContent = restaurant.cuisine;
+            
+            const navUrl = restaurant.lng && restaurant.lat ? `https://uri.amap.com/navigation?to=${restaurant.lng},${restaurant.lat},${encodeURIComponent(restaurant.name)}&mode=car` : '';
+            detailNavBtn.onclick = navUrl ? () => window.open(navUrl, '_blank') : () => alert('无法导航');
+            
+            setTimeout(() => {
+                initDetailMap(restaurant.lng, restaurant.lat, restaurant.name);
+            }, 100);
+        }
+
+        function closeDetail() {
+            detailModal.classList.add('hidden');
+            if (detailMapInstance) {
+                detailMapInstance.destroy();
+                detailMapInstance = null;
+            }
+        }
+
+        function initDetailMap(lng, lat, name) {
+            if (!lng || !lat) return;
+            
+            detailMapInstance = new AMap.Map('detailMap', {
+                zoom: 16,
+                center: [lng, lat],
+                mapStyle: 'amap://styles/light',
+            });
+            
+            new AMap.Marker({
+                position: [lng, lat],
+                map: detailMapInstance,
+                title: name,
+                icon: new AMap.Icon({
+                    size: new AMap.Size(40, 40),
+                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+                    imageSize: new AMap.Size(40, 40),
+                }),
+            });
+        }
+
+        searchBtn.addEventListener('click', searchRestaurants);
+        addressInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchRestaurants();
+        });
+        randomBtn.addEventListener('click', selectRandomRestaurant);
+        locateBtn.addEventListener('click', getCurrentLocation);
+        
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchTab(btn.dataset.tab);
+            });
+        });
+    </script>
+</body>
+</html>
